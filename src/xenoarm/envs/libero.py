@@ -99,5 +99,13 @@ class LiberoEnv:
     def diagnostics(self):
         return {"collision": None, "object_drop": None, "coordination_failure": None}
 
+    def render(self, *, width=960, height=540):
+        # Same camera orientation as Light-WAM's official get_libero_image.
+        obs = self.observe()
+        return {
+            "LIBERO agentview": obs["agentview_image"][::-1, ::-1].copy(),
+            "LIBERO wrist": obs["robot0_eye_in_hand_image"][::-1, ::-1].copy(),
+        }
+
     def close(self):
         self.raw.close()

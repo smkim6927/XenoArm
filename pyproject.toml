@@ -8,7 +8,11 @@ version = "0.1.0"
 description = "Paired language-correction experiments for Light-WAM, LIBERO and RoboTwin 2.0"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
-dependencies = ["numpy==1.26.4", "mujoco==3.3.2", "PyYAML==6.0.3"]
+dependencies = [
+  "numpy==1.26.4", "mujoco==3.3.2", "PyYAML==6.0.3",
+  "tqdm>=4.66,<5", "wandb>=0.22,<1", "Pillow>=11,<13",
+  "imageio>=2.37,<3", "imageio-ffmpeg==0.6.0", "matplotlib>=3.8,<3.11",
+]
 
 [project.optional-dependencies]
 libero = [

@@ -8,8 +8,13 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1
       - run: uv sync --frozen
       - run: uv run --frozen ruff check src scripts tests
       - run: uv run --frozen pytest -q
       - run: uv build
-      - run: uv run --frozen xenoarm run --config configs/smoke.json --output results/ci-smoke
+      - run: uv run --frozen xenoarm run --config configs/smoke.json --output results/ci-smoke --video --video-episodes 1 --no-progress
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulation-report
+          path: results/ci-smoke

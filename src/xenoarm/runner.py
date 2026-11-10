@@ -8,15 +8,18 @@ from pathlib import Path
 from time import perf_counter
 
 import numpy as np
+from tqdm.auto import tqdm
 
 from .config import pairing_key, validate
 from .control import ChunkController
 from .envs import make_env
 from .goals import import_symbol
 from .policies import make_policy
+from .tracking import RunObserver
+from .visualization import configure_headless, configure_writable_caches
 
 
-def run_episode(config, seed, env, policy):
+def run_episode(config, seed, env, policy, observer=None):
     policy.reset(seed)
     env.reset(seed)
     initial_hash = env.initial_state_hash
@@ -37,8 +40,11 @@ def run_episode(config, seed, env, policy):
     success = False
     diagnostic_hook = config["environment"].get("diagnostics_hook")
     wall_start = perf_counter()
+    if observer is not None:
+        observer.begin_episode(seed, env, controller.instruction)
     for step in range(config["max_steps"]):
         cycle_start = perf_counter()
+        corrected = False
         if event_idx < len(events) and events[event_idx]["step"] == step:
             event = events[event_idx]
             active_event = {
@@ -58,6 +64,7 @@ def run_episode(config, seed, env, policy):
             corrections.append(active_event)
             event_idx += 1
             hold_count = 0
+            corrected = True
         obs = env.observe()  # Always fresh, including after cancellation.
         dispatch = controller.next(obs)
         dispatch_s = perf_counter()
@@ -90,6 +97,8 @@ def run_episode(config, seed, env, policy):
                 **diagnostics,
             }
         )
+        if observer is not None:
+            observer.on_step(env, traces[-1], controller.instruction, corrected=corrected)
         if hold_count >= config.get("success_hold_steps", 1):
             if active_event is not None and active_event["goal_reached_step"] is None:
                 active_event["goal_reached_step"] = step
@@ -124,6 +133,7 @@ def run_episode(config, seed, env, policy):
         "applied_corrections": event_idx,
         "steps": len(traces),
         "wall_seconds": wall_seconds,
+        "instrumentation_seconds": observer.instrumentation_seconds if observer else 0.0,
         "stale_action_rate": (
             float(np.mean([r["stale"] for r in corrected_rows])) if corrected_rows else None
         ),
@@ -170,7 +180,21 @@ def run(config, output):
         "upstreams": {},
         "status": "running",
     }
-    for package in ("xenoarm", "mujoco", "numpy", "torch", "robosuite", "libero", "sapien"):
+    for package in (
+        "xenoarm",
+        "mujoco",
+        "numpy",
+        "torch",
+        "robosuite",
+        "libero",
+        "sapien",
+        "wandb",
+        "tqdm",
+        "imageio",
+        "imageio-ffmpeg",
+        "Pillow",
+        "matplotlib",
+    ):
         try:
             metadata["packages"][package] = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
@@ -186,18 +210,24 @@ def run(config, output):
 
     save_metadata()
     env = None
+    observer = None
     try:
+        configure_writable_caches(output)
+        if config.get("visualization", {}).get("enabled", False):
+            configure_headless()
         for key in ("checkpoint", "training_config", "dataset_stats"):
             if key in config["policy"]:
                 metadata[key + "_sha256"] = _file_sha(config["policy"][key])
         policy = make_policy(config["policy"])
         env = make_env({**config["environment"], "episode_max_steps": config["max_steps"]})
+        observer = RunObserver(config, output)
         with (output / "episodes.jsonl").open("x") as stream:
-            for seed in config["seeds"]:
-                result = run_episode(config, seed, env, policy)
+            for seed in observer.seeds():
+                result = run_episode(config, seed, env, policy, observer=observer)
+                observer.end_episode(result)
                 stream.write(json.dumps(result, allow_nan=False) + "\n")
                 stream.flush()
-                print(
+                tqdm.write(
                     json.dumps(
                         {
                             k: result[k]
@@ -210,7 +240,6 @@ def run(config, output):
                             )
                         }
                     ),
-                    flush=True,
                 )
         metadata["status"] = "completed"
     except BaseException as exc:
@@ -226,4 +255,23 @@ def run(config, output):
             metadata["close_error"] = f"{type(exc).__name__}: {exc}"
             raise
         finally:
-            save_metadata()
+            try:
+                if metadata["status"] == "completed":
+                    from .reporting import generate_report
+
+                    report_path = generate_report(output, metadata)
+                    print(f"Report: {report_path}", flush=True)
+            except BaseException as exc:
+                metadata["status"] = "failed"
+                metadata["reporting_error"] = f"{type(exc).__name__}: {exc}"
+                raise
+            finally:
+                try:
+                    if observer is not None:
+                        observer.close(status=metadata["status"])
+                except BaseException as exc:
+                    metadata["status"] = "failed"
+                    metadata["tracking_error"] = f"{type(exc).__name__}: {exc}"
+                    raise
+                finally:
+                    save_metadata()
