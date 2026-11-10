@@ -1,0 +1,34 @@
+{
+  "name": "lightwam_libero_spatial_destination_change",
+  "environment": {
+    "backend": "libero",
+    "libero_root": ".external/LIBERO",
+    "suite": "libero_spatial",
+    "task_name": "pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate",
+    "resolution": 256,
+    "settle_steps": 30
+  },
+  "policy": {
+    "backend": "lightwam_libero",
+    "lightwam_root": ".external/Light-WAM",
+    "libero_root": ".external/LIBERO",
+    "checkpoint": "checkpoints/libero/weights.pt",
+    "training_config": "checkpoints/libero/config.yaml",
+    "dataset_stats": "checkpoints/libero/dataset_stats.json",
+    "device": "cuda",
+    "precision": "bf16",
+    "action_horizon": 24,
+    "num_inference_steps": 10
+  },
+  "instruction": "Pick the akita black bowl between the plate and the ramekin and place it on the plate.",
+  "goal": {"kind": "native"},
+  "corrections": [
+    {"step": 60, "kind": "goal_change",
+     "instruction": "No, put the same black bowl on the ramekin instead.",
+     "goal": {"kind": "libero_predicates", "predicates": [["On", "akita_black_bowl_1", "glazed_rim_porcelain_ramekin_1"]]}}
+  ],
+  "seeds": [0, 1, 2, 3, 4],
+  "replan_steps": 8,
+  "success_hold_steps": 3,
+  "max_steps": 300
+}
