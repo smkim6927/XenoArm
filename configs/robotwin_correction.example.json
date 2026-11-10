@@ -1,0 +1,30 @@
+{
+  "name": "lightwam_robotwin_place_a2b_spatial_correction",
+  "environment": {
+    "backend": "robotwin",
+    "robotwin_root": ".external/RoboTwin",
+    "task_name": "place_a2b_left",
+    "task_config": "demo_clean"
+  },
+  "policy": {
+    "backend": "lightwam_robotwin",
+    "lightwam_root": ".external/Light-WAM",
+    "checkpoint": "checkpoints/robotwin/weights.pt",
+    "training_config": "checkpoints/robotwin/config.yaml",
+    "dataset_stats": "checkpoints/robotwin/dataset_stats.json",
+    "device": "cuda",
+    "precision": "bf16",
+    "action_horizon": 24,
+    "num_inference_steps": 10
+  },
+  "instruction": "Place object A to the left of object B.",
+  "goal": {"kind": "native"},
+  "corrections": [
+    {"step": 60, "kind": "goal_change", "instruction": "No, place object A to the right of object B instead.",
+     "goal": {"kind": "place_a2b", "direction": "right"}}
+  ],
+  "seeds": [0, 1, 2, 3, 4],
+  "replan_steps": 8,
+  "success_hold_steps": 3,
+  "max_steps": 400
+}

@@ -1,0 +1,4 @@
+include .python-version uv.lock Makefile
+recursive-include configs *.json
+recursive-include scripts *.py *.sh *.json
+recursive-include docs *.md

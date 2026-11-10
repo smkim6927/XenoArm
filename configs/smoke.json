@@ -1,0 +1,16 @@
+{
+  "name": "mujoco_correction_control_smoke",
+  "environment": {"backend": "mujoco_smoke"},
+  "policy": {"backend": "scripted_smoke", "horizon": 24},
+  "instruction": "Reach the left target.",
+  "goal": {"kind": "target", "target": "left"},
+  "corrections": [
+    {"step": 15, "kind": "goal_change", "instruction": "No, reach the right target instead.",
+     "goal": {"kind": "target", "target": "right"}}
+  ],
+  "seeds": [0, 1, 2],
+  "mode": "cancel",
+  "replan_steps": 24,
+  "success_hold_steps": 3,
+  "max_steps": 100
+}

@@ -205,6 +205,14 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# XenoArm local dependencies, model weights and experiment outputs
+.external/
+.cache/
+checkpoints/
+results/
+data/
+!uv.lock
+
 # Ruff stuff:
 .ruff_cache/
 
