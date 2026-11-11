@@ -13,6 +13,7 @@ class SmokeEnv:
     def __init__(self, config=None):
         self.model = mujoco.MjModel.from_xml_path(str(files("xenoarm") / "assets/smoke.xml"))
         self.data = mujoco.MjData(self.model)
+        self.renderer = None
 
     def reset(self, seed):
         mujoco.mj_resetData(self.model, self.data)
@@ -42,5 +43,15 @@ class SmokeEnv:
     def diagnostics(self):
         return {"collision": None, "object_drop": None, "coordination_failure": None}
 
+    def render(self, *, width=960, height=540):
+        if self.renderer is None:
+            self.model.vis.global_.offwidth = max(width, self.model.vis.global_.offwidth)
+            self.model.vis.global_.offheight = max(height, self.model.vis.global_.offheight)
+            self.renderer = mujoco.Renderer(self.model, width=width, height=height)
+        self.renderer.update_scene(self.data, camera="overview")
+        return {"MuJoCo overview": self.renderer.render()}
+
     def close(self):
-        pass
+        if self.renderer is not None:
+            self.renderer.close()
+            self.renderer = None

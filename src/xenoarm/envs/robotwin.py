@@ -119,6 +119,14 @@ class RoboTwinEnv:
     def diagnostics(self):
         return {"collision": None, "object_drop": None, "coordination_failure": None}
 
+    def render(self, *, width=960, height=540):
+        cameras = self.observe()["observation"]
+        return {
+            name: cameras[name]["rgb"]
+            for name in ("head_camera", "left_camera", "right_camera")
+            if name in cameras and "rgb" in cameras[name]
+        }
+
     def close(self):
         try:
             if self.task is not None:

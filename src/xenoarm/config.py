@@ -34,6 +34,29 @@ def validate(config):
         raise ValueError("success_hold_steps must be positive")
     if not isinstance(config["goal"], dict) or "kind" not in config["goal"]:
         raise ValueError("goal must specify its kind")
+    if "progress" in config and type(config["progress"]) is not bool:
+        raise ValueError("progress must be boolean")
+    tracking = config.get("tracking", {})
+    if not isinstance(tracking, dict) or tracking.get("mode", "disabled") not in (
+        "disabled",
+        "offline",
+        "online",
+    ):
+        raise ValueError("tracking.mode must be disabled, offline or online")
+    if "api_key" in tracking or "WANDB_API_KEY" in tracking:
+        raise ValueError(
+            "Keep W&B credentials in environment settings, not experiment configuration"
+        )
+    video = config.get("visualization", {})
+    if not isinstance(video, dict) or type(video.get("enabled", False)) is not bool:
+        raise ValueError("visualization.enabled must be boolean")
+    for key, default in (("fps", 20), ("frame_stride", 1), ("max_episodes", 3)):
+        if type(video.get(key, default)) is not int or video.get(key, default) < 1:
+            raise ValueError(f"visualization.{key} must be a positive integer")
+    for key, default, minimum in (("width", 960, 320), ("height", 540, 240)):
+        value = video.get(key, default)
+        if type(value) is not int or not minimum <= value <= 4096 or value % 2:
+            raise ValueError(f"visualization.{key} must be even and between {minimum} and 4096")
     previous = -1
     for event in config.get("corrections", []):
         step = event.get("step")
